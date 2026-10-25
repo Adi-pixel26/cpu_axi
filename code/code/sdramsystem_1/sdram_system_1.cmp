@@ -1,0 +1,55 @@
+	component sdram_system_1 is
+		port (
+			clk_clk          : in    std_logic                     := 'X';             -- clk
+			cpu_axi_awid     : in    std_logic_vector(0 downto 0)  := (others => 'X'); -- awid
+			cpu_axi_awaddr   : in    std_logic_vector(31 downto 0) := (others => 'X'); -- awaddr
+			cpu_axi_awlen    : in    std_logic_vector(7 downto 0)  := (others => 'X'); -- awlen
+			cpu_axi_awsize   : in    std_logic_vector(2 downto 0)  := (others => 'X'); -- awsize
+			cpu_axi_awburst  : in    std_logic_vector(1 downto 0)  := (others => 'X'); -- awburst
+			cpu_axi_awlock   : in    std_logic_vector(0 downto 0)  := (others => 'X'); -- awlock
+			cpu_axi_awcache  : in    std_logic_vector(3 downto 0)  := (others => 'X'); -- awcache
+			cpu_axi_awprot   : in    std_logic_vector(2 downto 0)  := (others => 'X'); -- awprot
+			cpu_axi_awqos    : in    std_logic_vector(3 downto 0)  := (others => 'X'); -- awqos
+			cpu_axi_awregion : in    std_logic_vector(3 downto 0)  := (others => 'X'); -- awregion
+			cpu_axi_awvalid  : in    std_logic                     := 'X';             -- awvalid
+			cpu_axi_awready  : out   std_logic;                                        -- awready
+			cpu_axi_wdata    : in    std_logic_vector(31 downto 0) := (others => 'X'); -- wdata
+			cpu_axi_wstrb    : in    std_logic_vector(3 downto 0)  := (others => 'X'); -- wstrb
+			cpu_axi_wlast    : in    std_logic                     := 'X';             -- wlast
+			cpu_axi_wvalid   : in    std_logic                     := 'X';             -- wvalid
+			cpu_axi_wready   : out   std_logic;                                        -- wready
+			cpu_axi_bid      : out   std_logic_vector(0 downto 0);                     -- bid
+			cpu_axi_bresp    : out   std_logic_vector(1 downto 0);                     -- bresp
+			cpu_axi_bvalid   : out   std_logic;                                        -- bvalid
+			cpu_axi_bready   : in    std_logic                     := 'X';             -- bready
+			cpu_axi_arid     : in    std_logic_vector(0 downto 0)  := (others => 'X'); -- arid
+			cpu_axi_araddr   : in    std_logic_vector(31 downto 0) := (others => 'X'); -- araddr
+			cpu_axi_arlen    : in    std_logic_vector(7 downto 0)  := (others => 'X'); -- arlen
+			cpu_axi_arsize   : in    std_logic_vector(2 downto 0)  := (others => 'X'); -- arsize
+			cpu_axi_arburst  : in    std_logic_vector(1 downto 0)  := (others => 'X'); -- arburst
+			cpu_axi_arlock   : in    std_logic_vector(0 downto 0)  := (others => 'X'); -- arlock
+			cpu_axi_arcache  : in    std_logic_vector(3 downto 0)  := (others => 'X'); -- arcache
+			cpu_axi_arprot   : in    std_logic_vector(2 downto 0)  := (others => 'X'); -- arprot
+			cpu_axi_arqos    : in    std_logic_vector(3 downto 0)  := (others => 'X'); -- arqos
+			cpu_axi_arregion : in    std_logic_vector(3 downto 0)  := (others => 'X'); -- arregion
+			cpu_axi_arvalid  : in    std_logic                     := 'X';             -- arvalid
+			cpu_axi_arready  : out   std_logic;                                        -- arready
+			cpu_axi_rid      : out   std_logic_vector(0 downto 0);                     -- rid
+			cpu_axi_rdata    : out   std_logic_vector(31 downto 0);                    -- rdata
+			cpu_axi_rresp    : out   std_logic_vector(1 downto 0);                     -- rresp
+			cpu_axi_rlast    : out   std_logic;                                        -- rlast
+			cpu_axi_rvalid   : out   std_logic;                                        -- rvalid
+			cpu_axi_rready   : in    std_logic                     := 'X';             -- rready
+			reset_reset_n    : in    std_logic                     := 'X';             -- reset_n
+			sdram_wire_addr  : out   std_logic_vector(12 downto 0);                    -- addr
+			sdram_wire_ba    : out   std_logic_vector(1 downto 0);                     -- ba
+			sdram_wire_cas_n : out   std_logic;                                        -- cas_n
+			sdram_wire_cke   : out   std_logic;                                        -- cke
+			sdram_wire_cs_n  : out   std_logic;                                        -- cs_n
+			sdram_wire_dq    : inout std_logic_vector(15 downto 0) := (others => 'X'); -- dq
+			sdram_wire_dqm   : out   std_logic_vector(1 downto 0);                     -- dqm
+			sdram_wire_ras_n : out   std_logic;                                        -- ras_n
+			sdram_wire_we_n  : out   std_logic                                         -- we_n
+		);
+	end component sdram_system_1;
+

@@ -1,0 +1,6 @@
+	component sdram_system is
+		port (
+			reset_reset_n : in std_logic := 'X'  -- reset_n
+		);
+	end component sdram_system;
+

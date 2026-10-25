@@ -1,0 +1,33 @@
+# ====================================================================
+# Quartus Prime & ModelSim Git Ignore
+# ====================================================================
+
+# Build output and compilation databases
+db/
+incremental_db/
+output_files/
+simulation/
+work/
+.test/
+.qsys_edit/
+**/work/
+**/.qsys_edit/
+
+# Backup folders and editor temporary files
+*.bak
+*.orig
+code_backup_*/
+*.qws
+
+# Quartus report, bitstream, and programming files
+*.rpt
+*.ddb
+*.smsg
+*.summary
+*.sof
+*.pof
+*.done
+*.jdi
+*.pin
+*.sld
+*.sopcinfo.bak
