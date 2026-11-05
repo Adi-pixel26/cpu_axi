@@ -62,7 +62,7 @@ wire        RegWriteEToM, MemWriteEToM, MemReadEToM;
 wire        RegWriteM, MemWriteM, MemReadM;
 wire [1:0]  ResultSrcM;
 wire [2:0]  funct3M;
-wire [31:0] ALUResultM, WriteDataM, PCPlus4M, PCM;
+wire [31:0] ResultM, ALUResultM, WriteDataM, PCPlus4M, PCM;
 // Writeback
 wire        RegWriteW;
 wire [1:0]  ResultSrcW;
@@ -211,15 +211,22 @@ assign MemWriteM_out = MemWriteM;
 assign MemReadM_out = MemReadM;
 assign funct3M_out = funct3M;
 
+// Select the final result before the M/W pipeline register.  ResultW is then
+// a register output, which shortens writeback-forwarding paths into the EX ALU.
+assign ResultM = (ResultSrcM == 2'b00) ? ALUResultM :
+                 (ResultSrcM == 2'b01) ? ReadDataM :
+                 (ResultSrcM == 2'b10) ? PCPlus4M :
+                                         ALUResultM;
+
 // --- PIPELINE REGISTER M/W ---
 pl_reg_mw pl_mw (
     .clk(clk), .reset(reset), .en(PipelineEnable),
     .RegWriteM(RegWriteM), .ResultSrcM(ResultSrcM),
-    .ALUResultM(ALUResultM), .ReadDataM(ReadDataM), .PCPlus4M(PCPlus4M), .PCM(PCM), .WriteDataM(WriteDataM),
+    .ResultM(ResultM), .ALUResultM(ALUResultM), .ReadDataM(ReadDataM), .PCPlus4M(PCPlus4M), .PCM(PCM), .WriteDataM(WriteDataM),
     .RdM(RdM),
 
     .RegWriteW(RegWriteW), .ResultSrcW(ResultSrcW),
-    .ALUResultW(ALUResultW), .ReadDataW(ReadDataW), .PCPlus4W(PCPlus4W), .PCW(PCW), .WriteDataW(WriteDataW),
+    .ResultW(ResultW), .ALUResultW(ALUResultW), .ReadDataW(ReadDataW), .PCPlus4W(PCPlus4W), .PCW(PCW), .WriteDataW(WriteDataW),
     .RdW(RdW)
 );
 
@@ -227,11 +234,6 @@ pl_reg_mw pl_mw (
 // ==========================================
 // 5. WRITEBACK STAGE
 // ==========================================
-assign ResultW = (ResultSrcW == 2'b00) ? ALUResultW :
-                 (ResultSrcW == 2'b01) ? ReadDataW :
-                 (ResultSrcW == 2'b10) ? PCPlus4W :
-                 (ResultSrcW == 2'b11) ? ALUResultW : 32'd0;
-
 // Outputting values for Hazard Unit
 assign RegWriteE_out = RegWriteE;
 assign RegWriteM_out = RegWriteM;

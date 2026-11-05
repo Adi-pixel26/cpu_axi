@@ -12,6 +12,15 @@ module cached_riscv_cpu_top (
     input  wire        clk,
     input  wire        reset,
 
+    // Debug/cache-maintenance request.  Hold this high to stop the CPU,
+    // drain any in-flight cache transaction, write back and invalidate the
+    // D-cache, invalidate the I-cache, and keep the CPU halted.  Deasserting
+    // the request resumes execution from the held pipeline state.
+    input  wire        debug_halt_req,
+    output wire        debug_halted,
+    output wire        cache_maintenance_busy,
+    output reg         cache_maintenance_error,
+
     output wire        M_AXI_ARESETN,
 
     // AXI write-address channel.
@@ -43,7 +52,16 @@ module cached_riscv_cpu_top (
 
     // Diagnostic status.  A later exception unit should convert this into
     // instruction/load/store access-fault and misalignment traps.
-    output wire        cache_error
+    output wire        cache_error,
+
+    // Local uncached MMIO port.  Addresses in 0x04xx_xxxx bypass the
+    // D-cache and are handled by a peripheral in the FPGA top level.
+    output wire        mmio_valid,
+    output wire        mmio_write,
+    output wire [31:0] mmio_addr,
+    output wire [31:0] mmio_wdata,
+    output wire [3:0]  mmio_wstrb,
+    input  wire [31:0] mmio_rdata
 );
 
     /* ================================================================
@@ -68,6 +86,37 @@ module cached_riscv_cpu_top (
     wire        dcache_stall;
     wire        cpu_memory_request;
     wire        pipeline_accept;
+
+    /* ================================================================
+     * Debug halt and cache-maintenance controller
+     * ================================================================ */
+    localparam MAINT_RUN        = 3'd0;
+    localparam MAINT_DRAIN      = 3'd1;
+    localparam MAINT_FLUSH_REQ  = 3'd2;
+    localparam MAINT_FLUSH_WAIT = 3'd3;
+    localparam MAINT_INVALIDATE = 3'd4;
+    localparam MAINT_HOLD       = 3'd5;
+
+    reg [2:0] maintenance_state;
+
+    wire cache_maintenance_active;
+    wire icache_invalidate_all;
+    wire dcache_flush_request;
+
+    assign cache_maintenance_active =
+        maintenance_state != MAINT_RUN;
+
+    assign icache_invalidate_all =
+        maintenance_state == MAINT_INVALIDATE;
+
+    assign dcache_flush_request =
+        maintenance_state == MAINT_FLUSH_REQ;
+
+    assign debug_halted =
+        maintenance_state == MAINT_HOLD;
+
+    assign cache_maintenance_busy =
+        cache_maintenance_active && !debug_halted;
 
     assign cpu_memory_request = cpu_mem_read | cpu_mem_write;
 
@@ -110,6 +159,27 @@ module cached_riscv_cpu_top (
     );
 
     /* ================================================================
+     * Local uncached MMIO address decode
+     * ================================================================
+     *
+     * The generated Qsys system owns only external SDRAM at
+     * 0x0000_0000--0x03ff_ffff.  Keep FPGA-local registers out of that
+     * path: data accesses in 0x04xx_xxxx are served directly by the
+     * top-level MMIO peripheral and never allocate a D-cache line.
+     */
+    wire cpu_mmio_access;
+
+    assign cpu_mmio_access =
+        cpu_memory_request && (cpu_mem_addr[31:24] == 8'h04);
+
+    assign mmio_valid =
+        cpu_mmio_access && !reset && !cache_maintenance_active;
+    assign mmio_write = cpu_mem_write;
+    assign mmio_addr  = cpu_mem_addr;
+    assign mmio_wdata = dcache_cpu_wdata;
+    assign mmio_wstrb = dcache_cpu_wstrb;
+
+    /* ================================================================
      * I-cache CPU and lower-memory signals
      * ================================================================ */
     wire        icache_cpu_req_ready;
@@ -127,9 +197,9 @@ module cached_riscv_cpu_top (
     l1_icache_4way icache (
         .clk(clk),
         .reset(reset),
-        .invalidate_all(1'b0),
+        .invalidate_all(icache_invalidate_all),
 
-        .cpu_req_valid(!reset),
+        .cpu_req_valid(!reset && !cache_maintenance_active),
         .cpu_req_ready(icache_cpu_req_ready),
         .cpu_req_addr(cpu_pc),
         .cpu_rsp_valid(icache_cpu_rsp_valid),
@@ -153,6 +223,14 @@ module cached_riscv_cpu_top (
     wire        dcache_cpu_rsp_ready;
     wire        dcache_cpu_rsp_error;
 
+    // Response signals driven by the cache itself.  The CPU-visible response
+    // signals above are muxed between this cache response and the local MMIO
+    // response below.
+    wire        dcache_cache_rsp_valid;
+    wire        dcache_cache_rsp_ready;
+    wire [31:0] dcache_cache_rsp_rdata;
+    wire        dcache_cache_rsp_error;
+
     wire        dcache_flush_ready;
     wire        dcache_flush_busy;
     wire        dcache_flush_done;
@@ -171,19 +249,20 @@ module cached_riscv_cpu_top (
         .clk(clk),
         .reset(reset),
 
-        .cpu_req_valid(cpu_memory_request && !reset),
+        .cpu_req_valid(cpu_memory_request && !reset &&
+                       !cache_maintenance_active && !cpu_mmio_access),
         .cpu_req_ready(dcache_cpu_req_ready),
         .cpu_req_addr(cpu_mem_addr),
         .cpu_req_write(cpu_mem_write),
         .cpu_req_wdata(dcache_cpu_wdata),
         .cpu_req_wstrb(dcache_cpu_wstrb),
 
-        .cpu_rsp_valid(dcache_cpu_rsp_valid),
-        .cpu_rsp_ready(dcache_cpu_rsp_ready),
-        .cpu_rsp_rdata(dcache_cpu_raw_rdata),
-        .cpu_rsp_error(dcache_cpu_rsp_error),
+        .cpu_rsp_valid(dcache_cache_rsp_valid),
+        .cpu_rsp_ready(dcache_cache_rsp_ready),
+        .cpu_rsp_rdata(dcache_cache_rsp_rdata),
+        .cpu_rsp_error(dcache_cache_rsp_error),
 
-        .flush_req(1'b0),
+        .flush_req(dcache_flush_request),
         .flush_ready(dcache_flush_ready),
         .flush_busy(dcache_flush_busy),
         .flush_done(dcache_flush_done),
@@ -200,6 +279,27 @@ module cached_riscv_cpu_top (
     );
 
     /*
+     * CPU data-response mux.
+     *
+     * The first LED peripheral has a fixed one-cycle local response, so its
+     * valid signal can be asserted with the request.  Later devices that
+     * require wait states (for example UART) can extend this small local bus
+     * with an explicit ready/response signal.
+     */
+    assign dcache_cpu_rsp_valid =
+        cpu_mmio_access ? mmio_valid : dcache_cache_rsp_valid;
+
+    assign dcache_cpu_raw_rdata =
+        cpu_mmio_access ? mmio_rdata : dcache_cache_rsp_rdata;
+
+    assign dcache_cpu_rsp_error =
+        cpu_mmio_access ? 1'b0 : dcache_cache_rsp_error;
+
+    // An MMIO transaction must not consume a cache response.
+    assign dcache_cache_rsp_ready =
+        dcache_cpu_rsp_ready && !cpu_mmio_access;
+
+    /*
      * The current core uses a conservative global cache hold.  Keep a cache
      * response asserted until every response required by the current pipeline
      * state is present, then consume them together on the advancing clock.
@@ -210,13 +310,76 @@ module cached_riscv_cpu_top (
         icache_cpu_rsp_valid &&
         (!cpu_memory_request || dcache_cpu_rsp_valid);
 
-    assign icache_stall = !icache_cpu_rsp_valid;
-    assign dcache_stall =
-        cpu_memory_request && !dcache_cpu_rsp_valid;
+    assign icache_stall =
+        cache_maintenance_active || !icache_cpu_rsp_valid;
 
-    assign icache_cpu_rsp_ready = pipeline_accept;
+    assign dcache_stall =
+        cache_maintenance_active ||
+        (cpu_memory_request && !dcache_cpu_rsp_valid);
+
+    // While entering maintenance, consume and discard any response that was
+    // already in flight.  The pipeline is held, so a pending CPU operation is
+    // safely retried after maintenance completes.
+    assign icache_cpu_rsp_ready =
+        cache_maintenance_active ? 1'b1 : pipeline_accept;
+
     assign dcache_cpu_rsp_ready =
-        pipeline_accept && cpu_memory_request;
+        cache_maintenance_active ? 1'b1 :
+        (pipeline_accept && cpu_memory_request);
+
+    /*
+     * Stop new CPU cache requests, drain requests already accepted by a
+     * cache, flush every dirty D-cache line, invalidate the I-cache, then
+     * remain halted until the external request is released.
+     */
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            maintenance_state       <= MAINT_RUN;
+            cache_maintenance_error <= 1'b0;
+        end else begin
+            case (maintenance_state)
+                MAINT_RUN: begin
+                    if (debug_halt_req) begin
+                        cache_maintenance_error <= 1'b0;
+                        maintenance_state <= MAINT_DRAIN;
+                    end
+                end
+
+                MAINT_DRAIN: begin
+                    if (icache_cpu_req_ready && dcache_flush_ready)
+                        maintenance_state <= MAINT_FLUSH_REQ;
+                end
+
+                MAINT_FLUSH_REQ: begin
+                    if (dcache_flush_ready)
+                        maintenance_state <= MAINT_FLUSH_WAIT;
+                end
+
+                MAINT_FLUSH_WAIT: begin
+                    if (dcache_flush_done) begin
+                        if (dcache_flush_error)
+                            cache_maintenance_error <= 1'b1;
+
+                        maintenance_state <= MAINT_INVALIDATE;
+                    end
+                end
+
+                MAINT_INVALIDATE: begin
+                    // icache_invalidate_all is asserted for this full cycle.
+                    maintenance_state <= MAINT_HOLD;
+                end
+
+                MAINT_HOLD: begin
+                    if (!debug_halt_req)
+                        maintenance_state <= MAINT_RUN;
+                end
+
+                default: begin
+                    maintenance_state <= MAINT_RUN;
+                end
+            endcase
+        end
+    end
 
     assign cache_error =
         (icache_cpu_rsp_valid && icache_cpu_rsp_error) ||

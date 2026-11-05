@@ -1,6 +1,7 @@
 module de10lite_cpu_sdram_top (
     input  wire        MAX10_CLK1_50,
-    input  wire [1:0]  KEY,
+    input  wire         SW0,
+	 input wire [1:0]    KEY,
 
     output wire [12:0] DRAM_ADDR,
     output wire [1:0]  DRAM_BA,
@@ -27,7 +28,27 @@ module de10lite_cpu_sdram_top (
     wire async_reset_n;
     wire board_reset_n;
     wire reset;
+	 wire cpu_reset;
+    reg [1:0] debug_halt_sync;
+    wire debug_halt_req;
+    wire debug_halted;
+    wire cache_maintenance_busy;
+    wire cache_maintenance_error;
     reg [1:0] reset_sync;
+
+
+        // Local CPU-to-FPGA MMIO bus
+    wire        mmio_valid;
+    wire        mmio_write;
+    wire [31:0] mmio_addr;
+    wire [31:0] mmio_wdata;
+    wire [3:0]  mmio_wstrb;
+    wire [31:0] mmio_rdata;
+
+    // Six user LEDs controlled by CPU MMIO
+    wire [5:0]  user_leds;
+
+
 
     de10lite_sdram_pll clock_generator (
         .inclk0     (MAX10_CLK1_50),
@@ -40,6 +61,20 @@ module de10lite_cpu_sdram_top (
     assign async_reset_n = KEY[0] && pll_locked;
     assign board_reset_n = reset_sync[1];
     assign reset         = ~board_reset_n;
+	 assign cpu_reset =reset|SW0;
+
+    /*
+     * KEY[1] is active-low.  Synchronize it before using it as the manual
+     * halt/flush request for the cache-maintenance controller.
+     */
+    always @(posedge system_clk or posedge reset) begin
+        if (reset)
+            debug_halt_sync <= 2'b00;
+        else
+            debug_halt_sync <= {debug_halt_sync[0], ~KEY[1]};
+    end
+
+    assign debug_halt_req = debug_halt_sync[1];
 
     always @(posedge system_clk or negedge async_reset_n) begin
         if (!async_reset_n)
@@ -83,7 +118,12 @@ module de10lite_cpu_sdram_top (
      */
     cached_riscv_cpu_top cpu_subsystem (
         .clk            (system_clk),
-        .reset          (reset),
+        .reset          (cpu_reset),
+
+        .debug_halt_req          (debug_halt_req),
+        .debug_halted            (debug_halted),
+        .cache_maintenance_busy  (cache_maintenance_busy),
+        .cache_maintenance_error (cache_maintenance_error),
 
         .M_AXI_ARESETN  (axi_aresetn),
 
@@ -109,9 +149,30 @@ module de10lite_cpu_sdram_top (
         .M_AXI_RVALID   (axi_rvalid),
         .M_AXI_RREADY   (axi_rready),
 
-        .cache_error    (cache_error)
+        .cache_error    (cache_error),
+
+        .mmio_valid     (mmio_valid),
+        .mmio_write     (mmio_write),
+        .mmio_addr      (mmio_addr),
+        .mmio_wdata     (mmio_wdata),
+        .mmio_wstrb     (mmio_wstrb),
+        .mmio_rdata     (mmio_rdata)
     );
 
+
+    fpga_mmio_peripherals mmio_peripherals (
+        .clk         (system_clk),
+        .reset       (cpu_reset),
+
+        .mmio_valid  (mmio_valid),
+        .mmio_write  (mmio_write),
+        .mmio_addr   (mmio_addr),
+        .mmio_wdata  (mmio_wdata),
+        .mmio_wstrb  (mmio_wstrb),
+
+        .mmio_rdata  (mmio_rdata),
+        .user_leds   (user_leds)
+    );
     /*
      * Generated Platform Designer system containing:
      *
@@ -122,7 +183,7 @@ module de10lite_cpu_sdram_top (
      */
     sdram_system_1 memory_system (
         .clk_clk            (system_clk),
-        .reset_reset_n      (axi_aresetn),
+        .reset_reset_n      (board_reset_n),
 
         /*
          * Single-beat AXI4 write-address channel.
@@ -200,8 +261,17 @@ module de10lite_cpu_sdram_top (
     assign DRAM_CLK = sdram_clk;
 
     /*
-     * Show a cache/memory error on LEDR[0].
+     * LEDR[0] = CPU/cache access error
+     * LEDR[1] = KEY1 maintenance completed; CPU safely halted
+     * LEDR[2] = cache maintenance is running
+     * LEDR[3] = D-cache flush reported an AXI/memory error
      */
-    assign LEDR = {9'b0, cache_error};
+    assign LEDR = {
+        user_leds,
+        cache_maintenance_error,
+        cache_maintenance_busy,
+        debug_halted,
+        cache_error
+    };
 
 endmodule

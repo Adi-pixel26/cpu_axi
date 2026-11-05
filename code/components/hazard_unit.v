@@ -60,11 +60,20 @@ module hazard_unit (
     assign StallF = lwStall | cacheStall;
     assign StallD = lwStall | cacheStall;
     
-    // We flush Execute if there is a Load-Use Stall OR a Control Hazard
-    // Cache waits hold the pipeline registers; they do not insert a bubble.
-    assign FlushE = lwStall | PCSrcE;
-    
-    // We flush Decode ONLY on Control Hazards
-    assign FlushD = PCSrcE;
+    /*
+     * A blocking cache wait must freeze the pipeline as one atomic state.
+     * Do not clear Decode/Execute while the PC is stalled: doing so erases a
+     * resolved branch/JAL/JALR before its target can be written into the PC.
+     * Once the cache response arrives, cacheStall falls and the redirect plus
+     * both flushes commit together on that clock edge.
+     *
+     * The same rule applies to a load-use bubble.  The load must first be
+     * allowed to advance from Execute into Memory; only then may Execute be
+     * cleared while Fetch/Decode remain held for the dependency.
+     */
+    assign FlushE = !cacheStall && (lwStall | PCSrcE);
+
+    // Decode is flushed only when a control redirect can update the PC.
+    assign FlushD = !cacheStall && PCSrcE;
 
 endmodule

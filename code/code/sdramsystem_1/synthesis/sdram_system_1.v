@@ -95,6 +95,14 @@ module sdram_system_1 (
 	wire   [2:0] axi_bridge_0_m0_awsize;                                    // axi_bridge_0:m0_awsize -> mm_interconnect_0:axi_bridge_0_m0_awsize
 	wire         axi_bridge_0_m0_awvalid;                                   // axi_bridge_0:m0_awvalid -> mm_interconnect_0:axi_bridge_0_m0_awvalid
 	wire         axi_bridge_0_m0_rvalid;                                    // mm_interconnect_0:axi_bridge_0_m0_rvalid -> axi_bridge_0:m0_rvalid
+	wire  [31:0] master_0_master_readdata;                                  // mm_interconnect_0:master_0_master_readdata -> master_0:master_readdata
+	wire         master_0_master_waitrequest;                               // mm_interconnect_0:master_0_master_waitrequest -> master_0:master_waitrequest
+	wire  [31:0] master_0_master_address;                                   // master_0:master_address -> mm_interconnect_0:master_0_master_address
+	wire         master_0_master_read;                                      // master_0:master_read -> mm_interconnect_0:master_0_master_read
+	wire   [3:0] master_0_master_byteenable;                                // master_0:master_byteenable -> mm_interconnect_0:master_0_master_byteenable
+	wire         master_0_master_readdatavalid;                             // mm_interconnect_0:master_0_master_readdatavalid -> master_0:master_readdatavalid
+	wire         master_0_master_write;                                     // master_0:master_write -> mm_interconnect_0:master_0_master_write
+	wire  [31:0] master_0_master_writedata;                                 // master_0:master_writedata -> mm_interconnect_0:master_0_master_writedata
 	wire         mm_interconnect_0_new_sdram_controller_0_s1_chipselect;    // mm_interconnect_0:new_sdram_controller_0_s1_chipselect -> new_sdram_controller_0:az_cs
 	wire  [15:0] mm_interconnect_0_new_sdram_controller_0_s1_readdata;      // new_sdram_controller_0:za_data -> mm_interconnect_0:new_sdram_controller_0_s1_readdata
 	wire         mm_interconnect_0_new_sdram_controller_0_s1_waitrequest;   // new_sdram_controller_0:za_waitrequest -> mm_interconnect_0:new_sdram_controller_0_s1_waitrequest
@@ -104,7 +112,7 @@ module sdram_system_1 (
 	wire         mm_interconnect_0_new_sdram_controller_0_s1_readdatavalid; // new_sdram_controller_0:za_valid -> mm_interconnect_0:new_sdram_controller_0_s1_readdatavalid
 	wire         mm_interconnect_0_new_sdram_controller_0_s1_write;         // mm_interconnect_0:new_sdram_controller_0_s1_write -> new_sdram_controller_0:az_wr_n
 	wire  [15:0] mm_interconnect_0_new_sdram_controller_0_s1_writedata;     // mm_interconnect_0:new_sdram_controller_0_s1_writedata -> new_sdram_controller_0:az_data
-	wire         rst_controller_reset_out_reset;                            // rst_controller:reset_out -> [axi_bridge_0:aresetn, mm_interconnect_0:axi_bridge_0_clk_reset_reset_bridge_in_reset_reset, new_sdram_controller_0:reset_n]
+	wire         rst_controller_reset_out_reset;                            // rst_controller:reset_out -> [axi_bridge_0:aresetn, mm_interconnect_0:axi_bridge_0_clk_reset_reset_bridge_in_reset_reset, mm_interconnect_0:master_0_clk_reset_reset_bridge_in_reset_reset, new_sdram_controller_0:reset_n]
 
 	altera_axi_bridge #(
 		.USE_PIPELINE          (1),
@@ -260,6 +268,24 @@ module sdram_system_1 (
 		.s0_wid      (1'b0)                                                                  // (terminated)
 	);
 
+	sdram_system_1_master_0 #(
+		.USE_PLI     (1),
+		.PLI_PORT    (50000),
+		.FIFO_DEPTHS (2)
+	) master_0 (
+		.clk_clk              (clk_clk),                       //          clk.clk
+		.clk_reset_reset      (~reset_reset_n),                //    clk_reset.reset
+		.master_address       (master_0_master_address),       //       master.address
+		.master_readdata      (master_0_master_readdata),      //             .readdata
+		.master_read          (master_0_master_read),          //             .read
+		.master_write         (master_0_master_write),         //             .write
+		.master_writedata     (master_0_master_writedata),     //             .writedata
+		.master_waitrequest   (master_0_master_waitrequest),   //             .waitrequest
+		.master_readdatavalid (master_0_master_readdatavalid), //             .readdatavalid
+		.master_byteenable    (master_0_master_byteenable),    //             .byteenable
+		.master_reset_reset   ()                               // master_reset.reset
+	);
+
 	sdram_system_1_new_sdram_controller_0 new_sdram_controller_0 (
 		.clk            (clk_clk),                                                   //   clk.clk
 		.reset_n        (~rst_controller_reset_out_reset),                           // reset.reset_n
@@ -325,6 +351,15 @@ module sdram_system_1 (
 		.axi_bridge_0_m0_rready                             (axi_bridge_0_m0_rready),                                    //                                             .rready
 		.clk_0_clk_clk                                      (clk_clk),                                                   //                                    clk_0_clk.clk
 		.axi_bridge_0_clk_reset_reset_bridge_in_reset_reset (rst_controller_reset_out_reset),                            // axi_bridge_0_clk_reset_reset_bridge_in_reset.reset
+		.master_0_clk_reset_reset_bridge_in_reset_reset     (rst_controller_reset_out_reset),                            //     master_0_clk_reset_reset_bridge_in_reset.reset
+		.master_0_master_address                            (master_0_master_address),                                   //                              master_0_master.address
+		.master_0_master_waitrequest                        (master_0_master_waitrequest),                               //                                             .waitrequest
+		.master_0_master_byteenable                         (master_0_master_byteenable),                                //                                             .byteenable
+		.master_0_master_read                               (master_0_master_read),                                      //                                             .read
+		.master_0_master_readdata                           (master_0_master_readdata),                                  //                                             .readdata
+		.master_0_master_readdatavalid                      (master_0_master_readdatavalid),                             //                                             .readdatavalid
+		.master_0_master_write                              (master_0_master_write),                                     //                                             .write
+		.master_0_master_writedata                          (master_0_master_writedata),                                 //                                             .writedata
 		.new_sdram_controller_0_s1_address                  (mm_interconnect_0_new_sdram_controller_0_s1_address),       //                    new_sdram_controller_0_s1.address
 		.new_sdram_controller_0_s1_write                    (mm_interconnect_0_new_sdram_controller_0_s1_write),         //                                             .write
 		.new_sdram_controller_0_s1_read                     (mm_interconnect_0_new_sdram_controller_0_s1_read),          //                                             .read

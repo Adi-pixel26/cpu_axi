@@ -2,9 +2,12 @@
 
 // Self-checking integration test for:
 // CPU -> I/D caches -> arbiter -> AXI bridge/master -> AXI memory.
-module tb_cached_riscv_cpu;
+module tb_cached_riscv_cpu #(
+    parameter SELF_CHECK = 1
+);
     reg clk;
     reg reset;
+    reg debug_halt_req;
 
     wire        axi_aresetn;
     wire [31:0] awaddr;
@@ -25,6 +28,9 @@ module tb_cached_riscv_cpu;
     wire        rvalid;
     wire        rready;
     wire        cache_error;
+    wire        debug_halted;
+    wire        cache_maintenance_busy;
+    wire        cache_maintenance_error;
 
     integer failures;
     integer index;
@@ -33,6 +39,10 @@ module tb_cached_riscv_cpu;
     cached_riscv_cpu_top dut (
         .clk(clk),
         .reset(reset),
+        .debug_halt_req(debug_halt_req),
+        .debug_halted(debug_halted),
+        .cache_maintenance_busy(cache_maintenance_busy),
+        .cache_maintenance_error(cache_maintenance_error),
         .M_AXI_ARESETN(axi_aresetn),
         .M_AXI_AWADDR(awaddr),
         .M_AXI_AWVALID(awvalid),
@@ -86,6 +96,7 @@ module tb_cached_riscv_cpu;
     initial begin
         clk = 1'b0;
         reset = 1'b1;
+        debug_halt_req = 1'b0;
         failures = 0;
         saw_cache_error = 1'b0;
 
@@ -117,6 +128,7 @@ module tb_cached_riscv_cpu;
         #30;
         reset = 1'b0;
 
+        if (SELF_CHECK) begin
         repeat (4000)
             @(posedge clk);
 
@@ -155,12 +167,68 @@ module tb_cached_riscv_cpu;
             failures = failures + 1;
         end
 
+        // The terminal JAL at 0x38 must keep execution in the final cache
+        // line.  This catches a redirect being lost when the speculative
+        // fetch at 0x40 causes an I-cache miss and stalls the PC.
+        if (dut.cpu_pc > 32'h00000040) begin
+            $display("FAIL terminal JAL redirect was lost: PC=%h",
+                     dut.cpu_pc);
+            failures = failures + 1;
+        end
+
+        // Halt the pipeline, flush dirty D-cache lines to AXI memory, and
+        // invalidate I-cache lines.  This is the hardware sequence used by
+        // KEY1 in the FPGA top level before JTAG inspects SDRAM.
+        debug_halt_req = 1'b1;
+        index = 0;
+        while (debug_halted !== 1'b1 && index < 20000) begin
+            @(posedge clk);
+            index = index + 1;
+        end
+
+        if (debug_halted !== 1'b1) begin
+            $display("FAIL cache maintenance did not reach halted state");
+            failures = failures + 1;
+        end
+
+        if (cache_maintenance_error) begin
+            $display("FAIL cache maintenance reported an AXI error");
+            failures = failures + 1;
+        end
+
+        if (memory.RAM[64] !== 32'h00800123 ||
+            memory.RAM[65] !== 32'h00000055) begin
+            $display("FAIL D-cache flush: RAM[64]=%h RAM[65]=%h",
+                     memory.RAM[64], memory.RAM[65]);
+            failures = failures + 1;
+        end
+
+        for (index = 0; index < 128; index = index + 1) begin
+            if (dut.icache.valid_way0[index] ||
+                dut.icache.valid_way1[index] ||
+                dut.icache.valid_way2[index] ||
+                dut.icache.valid_way3[index]) begin
+                $display("FAIL I-cache set %0d remained valid", index);
+                failures = failures + 1;
+            end
+        end
+
+        debug_halt_req = 1'b0;
+        repeat (10)
+            @(posedge clk);
+
+        if (debug_halted || cache_maintenance_busy) begin
+            $display("FAIL CPU did not resume after debug halt release");
+            failures = failures + 1;
+        end
+
         if (failures == 0)
             $display("PASS cached CPU, load/store adapter, arbiter, and AXI path");
         else
             $display("TOTAL FAILURES: %0d", failures);
 
         $finish;
+        end
     end
 
 endmodule

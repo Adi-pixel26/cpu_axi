@@ -6,7 +6,7 @@ module pl_reg_mw (
     input [1:0] ResultSrcM,
     
     // 2. Data Signals IN (Memory Stage)
-    input [31:0] ALUResultM, ReadDataM, PCPlus4M, PCM, WriteDataM, // Added WriteDataM for grader
+    input [31:0] ResultM, ALUResultM, ReadDataM, PCPlus4M, PCM, WriteDataM, // Added WriteDataM for grader
     
     // 3. Register Address IN (Memory Stage)
     input [4:0] RdM,
@@ -18,7 +18,7 @@ module pl_reg_mw (
     output reg [1:0] ResultSrcW,
     
     // 2. Data Signals OUT (Writeback Stage)
-    output reg [31:0] ALUResultW, ReadDataW, PCPlus4W, PCW, WriteDataW, // Added WriteDataW for grader
+    output reg [31:0] ResultW, ALUResultW, ReadDataW, PCPlus4W, PCW, WriteDataW, // Added WriteDataW for grader
     
     // 3. Register Address OUT (Writeback Stage)
     output reg [4:0] RdW
@@ -28,6 +28,7 @@ module pl_reg_mw (
       if (reset) begin
         RegWriteW  <= 1'b0;
         ResultSrcW <= 2'b00;
+        ResultW    <= 32'd0;
         ALUResultW <= 32'd0;
         ReadDataW  <= 32'd0;
         PCPlus4W   <= 32'd0;
@@ -38,6 +39,9 @@ module pl_reg_mw (
         RegWriteW  <= RegWriteM;
         ResultSrcW <= ResultSrcM;
 
+        // Register the selected writeback value at the M/W boundary.  This
+        // keeps the writeback-select mux out of W-to-E forwarding paths.
+        ResultW    <= ResultM;
         ALUResultW <= ALUResultM;
         ReadDataW  <= ReadDataM; // Data loaded from Data Memory
         PCPlus4W   <= PCPlus4M;

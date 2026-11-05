@@ -49,6 +49,10 @@ module tb_cpu_sdram_system_1;
     cached_riscv_cpu_top cpu_dut (
         .clk            (clk),
         .reset          (reset),
+        .debug_halt_req          (1'b0),
+        .debug_halted            (),
+        .cache_maintenance_busy  (),
+        .cache_maintenance_error (),
         .M_AXI_ARESETN  (axi_aresetn),
         .M_AXI_AWADDR   (awaddr),
         .M_AXI_AWVALID  (awvalid),

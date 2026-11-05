@@ -1,0 +1,73 @@
+
+Discarded input sections
+
+ .text          0x0000000000000000        0x0 /tmp/ccjquH2K.o
+ .data          0x0000000000000000        0x0 /tmp/ccjquH2K.o
+ .bss           0x0000000000000000        0x0 /tmp/ccjquH2K.o
+ .text          0x0000000000000000        0x0 /tmp/cci9MjyB.o
+ .data          0x0000000000000000        0x0 /tmp/cci9MjyB.o
+ .bss           0x0000000000000000        0x0 /tmp/cci9MjyB.o
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+SDRAM            0x0000000000000000 0x0000000004000000 xrw
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+                0x0000000000000000                . = ORIGIN (SDRAM)
+
+.init           0x0000000000000000       0x3c
+ *(.init)
+ .init          0x0000000000000000       0x3c /tmp/ccjquH2K.o
+                0x0000000000000000                _start
+
+.text           0x000000000000003c      0x114
+ *(.text .text.*)
+ .text.sum_array
+                0x000000000000003c       0x30 /tmp/cci9MjyB.o
+ .text.signed_divide
+                0x000000000000006c        0x8 /tmp/cci9MjyB.o
+ .text.stack_probe
+                0x0000000000000074       0x38 /tmp/cci9MjyB.o
+ .text.main     0x00000000000000ac       0xa4 /tmp/cci9MjyB.o
+                0x00000000000000ac                main
+
+.rela.dyn       0x0000000000000150        0x0
+ .rela.init     0x0000000000000150        0x0 /tmp/ccjquH2K.o
+
+.rodata
+ *(.rodata .rodata.*)
+
+.data           0x0000000000000150       0x20
+ *(.data .data.*)
+ .data.numbers  0x0000000000000150       0x20 /tmp/cci9MjyB.o
+ *(.sdata .sdata.*)
+                0x0000000000000970                PROVIDE (__global_pointer$ = (. + 0x800))
+
+.bss            0x0000000000000170       0x10
+                0x0000000000000170                __bss_start = .
+ *(.bss .bss.*)
+ .bss.bss_test  0x0000000000000170       0x10 /tmp/cci9MjyB.o
+ *(.sbss .sbss.*)
+ *(COMMON)
+                0x0000000000000180                __bss_end = .
+                0x0000000000000180                . = ALIGN (0x10)
+                0x0000000000000180                __heap_start = .
+                0x0000000003fffff0                __stack_top = ((ORIGIN (SDRAM) + LENGTH (SDRAM)) - 0x10)
+LOAD /tmp/ccjquH2K.o
+LOAD /tmp/cci9MjyB.o
+LOAD /usr/lib/gcc/riscv64-unknown-elf/10.2.0/rv32im/ilp32/libgcc.a
+OUTPUT(firmware.elf elf32-littleriscv)
+
+.riscv.attributes
+                0x0000000000000000       0x21
+ .riscv.attributes
+                0x0000000000000000       0x1f /tmp/ccjquH2K.o
+ .riscv.attributes
+                0x000000000000001f       0x21 /tmp/cci9MjyB.o
+
+.comment        0x0000000000000000        0xf
+ .comment       0x0000000000000000        0xf /tmp/cci9MjyB.o
+                                         0x10 (size before relaxing)

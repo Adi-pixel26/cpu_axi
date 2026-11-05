@@ -1,16 +1,6 @@
 
 module sdram_system_1 (
 	clk_clk,
-	reset_reset_n,
-	sdram_wire_addr,
-	sdram_wire_ba,
-	sdram_wire_cas_n,
-	sdram_wire_cke,
-	sdram_wire_cs_n,
-	sdram_wire_dq,
-	sdram_wire_dqm,
-	sdram_wire_ras_n,
-	sdram_wire_we_n,
 	cpu_axi_awid,
 	cpu_axi_awaddr,
 	cpu_axi_awlen,
@@ -49,19 +39,19 @@ module sdram_system_1 (
 	cpu_axi_rresp,
 	cpu_axi_rlast,
 	cpu_axi_rvalid,
-	cpu_axi_rready);	
+	cpu_axi_rready,
+	reset_reset_n,
+	sdram_wire_addr,
+	sdram_wire_ba,
+	sdram_wire_cas_n,
+	sdram_wire_cke,
+	sdram_wire_cs_n,
+	sdram_wire_dq,
+	sdram_wire_dqm,
+	sdram_wire_ras_n,
+	sdram_wire_we_n);	
 
 	input		clk_clk;
-	input		reset_reset_n;
-	output	[12:0]	sdram_wire_addr;
-	output	[1:0]	sdram_wire_ba;
-	output		sdram_wire_cas_n;
-	output		sdram_wire_cke;
-	output		sdram_wire_cs_n;
-	inout	[15:0]	sdram_wire_dq;
-	output	[1:0]	sdram_wire_dqm;
-	output		sdram_wire_ras_n;
-	output		sdram_wire_we_n;
 	input	[0:0]	cpu_axi_awid;
 	input	[31:0]	cpu_axi_awaddr;
 	input	[7:0]	cpu_axi_awlen;
@@ -101,4 +91,14 @@ module sdram_system_1 (
 	output		cpu_axi_rlast;
 	output		cpu_axi_rvalid;
 	input		cpu_axi_rready;
+	input		reset_reset_n;
+	output	[12:0]	sdram_wire_addr;
+	output	[1:0]	sdram_wire_ba;
+	output		sdram_wire_cas_n;
+	output		sdram_wire_cke;
+	output		sdram_wire_cs_n;
+	inout	[15:0]	sdram_wire_dq;
+	output	[1:0]	sdram_wire_dqm;
+	output		sdram_wire_ras_n;
+	output		sdram_wire_we_n;
 endmodule

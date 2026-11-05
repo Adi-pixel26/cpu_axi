@@ -1,0 +1,107 @@
+
+firmware.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .init:
+
+00000000 <_start>:
+   0:	00001197          	auipc	gp,0x1
+   4:	97018193          	addi	gp,gp,-1680 # 970 <__global_pointer$>
+   8:	04000117          	auipc	sp,0x4000
+   c:	fe810113          	addi	sp,sp,-24 # 3fffff0 <__stack_top>
+  10:	00000297          	auipc	t0,0x0
+  14:	16028293          	addi	t0,t0,352 # 170 <bss_test>
+  18:	00000317          	auipc	t1,0x0
+  1c:	16830313          	addi	t1,t1,360 # 180 <__bss_end>
+
+00000020 <clear_bss>:
+  20:	0062f863          	bgeu	t0,t1,30 <call_main>
+  24:	0002a023          	sw	zero,0(t0)
+  28:	00428293          	addi	t0,t0,4
+  2c:	ff5ff06f          	j	20 <clear_bss>
+
+00000030 <call_main>:
+  30:	00000097          	auipc	ra,0x0
+  34:	07c080e7          	jalr	124(ra) # ac <main>
+
+00000038 <hang>:
+  38:	0000006f          	j	38 <hang>
+
+Disassembly of section .text:
+
+0000003c <sum_array>:
+  3c:	02058463          	beqz	a1,64 <sum_array+0x28>
+  40:	00050793          	mv	a5,a0
+  44:	00259593          	slli	a1,a1,0x2
+  48:	00b505b3          	add	a1,a0,a1
+  4c:	00000513          	li	a0,0
+  50:	0007a703          	lw	a4,0(a5)
+  54:	00e50533          	add	a0,a0,a4
+  58:	00478793          	addi	a5,a5,4
+  5c:	feb79ae3          	bne	a5,a1,50 <sum_array+0x14>
+  60:	00008067          	ret
+  64:	00058513          	mv	a0,a1
+  68:	00008067          	ret
+
+0000006c <signed_divide>:
+  6c:	02b54533          	div	a0,a0,a1
+  70:	00008067          	ret
+
+00000074 <stack_probe>:
+  74:	ff010113          	addi	sp,sp,-16
+  78:	00a12023          	sw	a0,0(sp)
+  7c:	00150513          	addi	a0,a0,1
+  80:	00a12223          	sw	a0,4(sp)
+  84:	00012783          	lw	a5,0(sp)
+  88:	00412703          	lw	a4,4(sp)
+  8c:	00e7c7b3          	xor	a5,a5,a4
+  90:	00f12423          	sw	a5,8(sp)
+  94:	00812783          	lw	a5,8(sp)
+  98:	05578793          	addi	a5,a5,85
+  9c:	00f12623          	sw	a5,12(sp)
+  a0:	00c12503          	lw	a0,12(sp)
+  a4:	01010113          	addi	sp,sp,16
+  a8:	00008067          	ret
+
+000000ac <main>:
+  ac:	ff010113          	addi	sp,sp,-16
+  b0:	00112623          	sw	ra,12(sp)
+  b4:	00812423          	sw	s0,8(sp)
+  b8:	00912223          	sw	s1,4(sp)
+  bc:	01212023          	sw	s2,0(sp)
+  c0:	00800593          	li	a1,8
+  c4:	00000517          	auipc	a0,0x0
+  c8:	08c50513          	addi	a0,a0,140 # 150 <numbers>
+  cc:	00000097          	auipc	ra,0x0
+  d0:	f70080e7          	jalr	-144(ra) # 3c <sum_array>
+  d4:	00050493          	mv	s1,a0
+  d8:	00001437          	lui	s0,0x1
+  dc:	00a42023          	sw	a0,0(s0) # 1000 <__global_pointer$+0x690>
+  e0:	59f40913          	addi	s2,s0,1439
+  e4:	01242223          	sw	s2,4(s0)
+  e8:	07b00793          	li	a5,123
+  ec:	00f42423          	sw	a5,8(s0)
+  f0:	123457b7          	lui	a5,0x12345
+  f4:	67878793          	addi	a5,a5,1656 # 12345678 <__stack_top+0xe345688>
+  f8:	00f42623          	sw	a5,12(s0)
+  fc:	00000797          	auipc	a5,0x0
+ 100:	0747a783          	lw	a5,116(a5) # 170 <bss_test>
+ 104:	00f42823          	sw	a5,16(s0)
+ 108:	00700593          	li	a1,7
+ 10c:	fac00513          	li	a0,-84
+ 110:	00000097          	auipc	ra,0x0
+ 114:	f5c080e7          	jalr	-164(ra) # 6c <signed_divide>
+ 118:	00a42a23          	sw	a0,20(s0)
+ 11c:	23440513          	addi	a0,s0,564
+ 120:	00000097          	auipc	ra,0x0
+ 124:	f54080e7          	jalr	-172(ra) # 74 <stack_probe>
+ 128:	00a42c23          	sw	a0,24(s0)
+ 12c:	012484b3          	add	s1,s1,s2
+ 130:	00942e23          	sw	s1,28(s0)
+ 134:	040007b7          	lui	a5,0x4000
+ 138:	03f00713          	li	a4,63
+ 13c:	00e7a023          	sw	a4,0(a5) # 4000000 <__stack_top+0x10>
+ 140:	0007a783          	lw	a5,0(a5)
+ 144:	03f7f793          	andi	a5,a5,63
+ 148:	02f42023          	sw	a5,32(s0)
+ 14c:	0000006f          	j	14c <main+0xa0>

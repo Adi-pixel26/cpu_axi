@@ -25,6 +25,14 @@
          type = "int";
       }
    }
+   element master_0
+   {
+      datum _sortIndex
+      {
+         value = "3";
+         type = "int";
+      }
+   }
    element new_sdram_controller_0
    {
       datum _sortIndex
@@ -138,6 +146,20 @@
   <parameter name="resetSynchronousEdges" value="NONE" />
  </module>
  <module
+   name="master_0"
+   kind="altera_jtag_avalon_master"
+   version="20.1"
+   enabled="1">
+  <parameter name="AUTO_DEVICE" value="10M50DAF484C7G" />
+  <parameter name="AUTO_DEVICE_FAMILY" value="MAX 10" />
+  <parameter name="AUTO_DEVICE_SPEEDGRADE" value="7" />
+  <parameter name="COMPONENT_CLOCK" value="0" />
+  <parameter name="FAST_VER" value="0" />
+  <parameter name="FIFO_DEPTHS" value="2" />
+  <parameter name="PLI_PORT" value="50000" />
+  <parameter name="USE_PLI" value="1" />
+ </module>
+ <module
    name="new_sdram_controller_0"
    kind="altera_avalon_new_sdram_controller"
    version="20.1"
@@ -176,16 +198,31 @@
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
+   kind="avalon"
+   version="20.1"
+   start="master_0.master"
+   end="new_sdram_controller_0.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0000" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
    kind="clock"
    version="20.1"
    start="clk_0.clk"
    end="new_sdram_controller_0.clk" />
  <connection kind="clock" version="20.1" start="clk_0.clk" end="axi_bridge_0.clk" />
+ <connection kind="clock" version="20.1" start="clk_0.clk" end="master_0.clk" />
  <connection
    kind="reset"
    version="20.1"
    start="clk_0.clk_reset"
    end="axi_bridge_0.clk_reset" />
+ <connection
+   kind="reset"
+   version="20.1"
+   start="clk_0.clk_reset"
+   end="master_0.clk_reset" />
  <connection
    kind="reset"
    version="20.1"
