@@ -9,6 +9,9 @@
 
 * **GitHub Repository:** [https://github.com/Adi-pixel26/cpu_axi](https://github.com/Adi-pixel26/cpu_axi)
 * **RTL Source & Netlist Modules:** [`code/`](https://github.com/Adi-pixel26/cpu_axi/tree/main/code) | [`code/components/`](https://github.com/Adi-pixel26/cpu_axi/tree/main/code/components) | [`firmware/`](https://github.com/Adi-pixel26/cpu_axi/tree/main/firmware)
+* **🎥 Hardware Demonstration Videos:**
+  * **[Watch Tetris Hardware Gameplay & Controls Demo Video](docs/videos/tetris_demo_1.mp4)**
+  * **[Watch DE10-Lite FPGA Board & VGA Output Video](docs/videos/tetris_demo_2.mp4)**
 
 ---
 
@@ -168,7 +171,7 @@ To eliminate structural hazards between instruction fetches and data loads/store
 
 ### 2.1 Four-Way Set-Associative Cache Architecture
 
-![4-Way Set-Associative Cache Architecture](docs/images/cache_4way_architecture.png)
+![4-Way Set-Associative Cache Architecture](docs/images/cache_4way_architecture_schematic.png)
 *Figure 2: Four-way set-associative cache organization showing parallel tag comparators, valid bit gating, 4-to-2 way hit encoder, and data way multiplexer.*
 
 | Architectural Parameter | L1 Instruction Cache (`l1_icache_4way.v`) | L1 Data Cache (`l1_dcache_4way.v`) |
